@@ -1,0 +1,37 @@
+{
+	"compileOnSave": true,
+	"compilerOptions": {
+		"target": "es2017",
+		"module": "system",
+
+		"outFile": "./build/library.js",
+		"sourceMap": true,
+
+		"allowUnreachableCode": false,
+		"allowUnusedLabels": false,
+		"alwaysStrict": true,
+		"diagnostics": true,
+		"listEmittedFiles": true,
+		"listFiles": false,
+		"locale": "en",
+		"noImplicitAny": true,
+		"noImplicitReturns": true,
+		"noImplicitThis": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"removeComments": true,
+
+		"strict": true,
+		"strictNullChecks": true,
+
+	},
+	"include": [
+		"*.ts",
+		"code/*",
+		"code/**/*",
+	],
+	"exclude": [
+		"code/cg-math-typescript-library/src/bounds-checking/*",
+		"code/cg-math-typescript-library/src/bounds-checking/**/*",
+	],
+}

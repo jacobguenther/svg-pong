@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg viewBox="0 0 532 276"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>
+    <linearGradient id="pong-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%"
+            style="stop-color:green;stop-opacity:1;" />
+        <stop offset="100%"
+            style="stop-color:red;stop-opacity:1;" />
+    </linearGradient>
+</defs>
+<rect x="0" y="0" width="100%" height="100%"
+    style="fill:url(#pong-gradient)" />
+<svg id="pong-screen" x="10" y="10" width="512" height="256" >
+    <rect x="0" y="0" width="512" height="256"
+        style="fill:black" />
+    <line x1="256" y1="0" x2="256" y2="256"
+        style="stroke:white;stroke-dasharray:5;stroke-width:2;" />
+    <path id="pong-ball-path" d="M256 128"
+        style="stroke:blue;" />
+    <path id="pong-collision-path" d="M256 128"
+        style="stroke:red;stroke-dasharray:1;" />
+    <rect id="pong-player-paddle" width="2" height="28"
+        transform="translate(0, 114)"/>
+    <rect id="pong-ai-paddle" width="2" height="28"
+        transform="translate(510, 114)"/>
+    <text id="pong-player-score" class="pong-score" x="85.33" y="64">0</text>
+    <text id="pong-ai-score" class="pong-score" x="426.66" y="64">0</text>
+    <circle id="pong-ball" r="3"
+        style="fill:white;">
+        <animateMotion id="pong-ball-animation" dur="1.0s" repeatCount="indefinite" >
+            <mpath xlink:href="#pong-ball-path" />
+        </animateMotion>
+    </circle>
+</svg>
+<style>
+#pong-ai-paddle,
+#pong-player-paddle,
+.pong-score {
+    fill: white;
+}
+.pong-score {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 2em;
+}
+</style>
+</svg>
