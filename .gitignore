@@ -1,5 +1,7 @@
 library.*
 
+build/*
+
 build/library.*
 
 build/min/*
