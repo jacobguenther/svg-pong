@@ -25,8 +25,15 @@ class Vec2 {
         return Math.sqrt(this.magnitude2());
     }
 
+    numberAsString(n: number): string {
+        if (n == Math.floor(n)) {
+            return n.toString();
+        } else {
+            return n.toFixed(2);
+        }
+    }
     asString(): string {
-        return `${this.x} ${this.y} `;
+        return `${this.numberAsString(this.x)},${this.numberAsString(this.y)} `;
     }
     asAbsolute(): string {
         return `M${this.asString()}`;
@@ -92,9 +99,13 @@ class Pong {
     ];
     readonly paddleBounds: Array<Line> = [
         this.bounds[0][0],
-        new Line(new Vec2(this.paddleWidth, 0), new Vec2(this.paddleWidth, this.height)),
+        new Line(
+            new Vec2(this.paddleWidth + this.ballRadius, 0),
+            new Vec2(this.paddleWidth + this.ballRadius, this.height)),
         this.bounds[2][0],
-        new Line(new Vec2(this.width - this.paddleWidth, 0), new Vec2(this.width - this.paddleWidth, this.height))
+        new Line(
+            new Vec2(this.width - this.paddleWidth - this.ballRadius, 0),
+            new Vec2(this.width - this.paddleWidth - this.ballRadius, this.height))
     ];
 
     private lastAnimationFrame = 0;
@@ -122,14 +133,15 @@ class Pong {
     private moveDown = false;
 
     constructor(svgContent: Document) {
+        console.log('constructor');
         this.elements = new PongElements(svgContent);
         this.elements.resetButton.addEventListener('click', () => { this.reset(); });
         this.elements.serveButton.addEventListener('click', () => { this.start(); });
         document.addEventListener('keydown', (event) => { this.handleKeyboard(event); });
     }
 
-    get deltaT(): number { return this.time - this.lastTime; }
-    get timeSinceServe(): number { return (this.time - this.serveTime); }
+    get deltaT(): number { return (this.time - this.lastTime) / 1000; }
+    get timeSinceServe(): number { return (this.time - this.serveTime) / 1000; }
 
     public start() {
         if (!this.running) {
@@ -140,6 +152,17 @@ class Pong {
             });
         }
     }
+    private serve() {
+        this.shouldServe = false;
+        this.serveTime = this.time;
+        this.ballVelocity.x = this.genRandom();
+        this.ballVelocity.y = this.genRandom();
+        this.buildBallPath(this.center);
+    }
+    private genRandom() {
+        const range = 100;
+        return Math.random() * (range + range + 1) - range;
+    }
     public reset() {
         this.running = false;
         window.cancelAnimationFrame(this.lastAnimationFrame);
@@ -147,142 +170,6 @@ class Pong {
         this.resetPaddles();
         this.resetBall();
         this.resetScores();
-    }
-    private update(timestamp: number) {
-        this.lastTime = this.time;
-        this.time = timestamp;
-
-        if (this.shouldServe)
-            this.serve();
-
-        if (this.timeSinceServe / 1000 > this.collisionDur) {
-            if (this.ballVelocity.x < 0) {
-                if (this.playerPosition.y + this.paddleHeight > this.collisionPoint.y &&
-                    this.playerPosition.y < this.collisionPoint.y)
-                {
-                    this.reset();
-                    return;
-                }
-            } else {
-
-            }
-        }
-        if (this.timeSinceServe / 1000 > this.scoreDur)
-            if (this.ballVelocity.x > 0)
-                this.processScore(true, this.elements.playerScoreElement);
-            else
-                this.processScore(false, this.elements.aiScoreElement);
-
-        let dy = this.deltaT / 1000 * this.paddleVelocity;
-        if (this.moveDown)
-            this.playerPosition.y =
-                Math.min(this.height - this.paddleHeight, this.playerPosition.y + dy);
-        else if (this.moveUp)
-            this.playerPosition.y = Math.max(this.playerPosition.y - dy, 0);
-
-        if (this.moveDown || this.moveUp) {
-            translateToPosition(this.elements.playerPaddle, this.playerPosition);
-            this.moveDown = false;
-            this.moveUp = false;
-        }
-
-        if (this.running)
-            this.lastAnimationFrame = window.requestAnimationFrame((timestamp) => {
-                this.update(timestamp);
-            });
-    }
-    private serve() {
-        this.shouldServe = false;
-        this.serveTime = this.time;
-        this.ballVelocity.x = this.genRandom();
-        this.ballVelocity.y = this.genRandom();
-        this.buildBallPath();
-    }
-    private genRandom() {
-        const range = 60;
-        return Math.floor(Math.random() * (range + range + 1) - range);
-    }
-    private buildBallPath() {
-        let dir = this.ballVelocity.mul(600);
-        let path = new Line(this.center, this.center.add(dir));
-        let points = [];
-        while (true) {
-            let maybeIntersect = this.findNextCollision(path);
-            if (maybeIntersect !== null) {
-                let [point, isEnd] = maybeIntersect;
-
-                this.adjustCollision(point, isEnd);
-                points.push(point);
-                if (isEnd) {
-                    for (let line of this.paddleBounds) {
-                        let maybeIntersect = lineLineIntersect(path, line);
-                        if (maybeIntersect !== null)
-                            this.collisionPoint = maybeIntersect;
-                    };
-                    break;
-                }
-
-                dir.y = -dir.y;
-                path.p1 = point;
-                path.p2 = point.add(dir);
-            } else
-                break;
-        }
-        let directions = this.getPathCommands(this.center, points);
-
-        points.pop();
-        points.push(this.collisionPoint);
-        let collisionPath = this.getPathCommands(this.center, points);
-        this.elements.collisionPath.setAttribute('d', collisionPath);
-        let ballSpeed = this.ballVelocity.magnitude();
-        this.collisionDur = this.elements.collisionPath.getTotalLength() / ballSpeed;
-
-        this.elements.ballPath.setAttribute('d', directions);
-        this.scoreDur = this.elements.ballPath.getTotalLength() / ballSpeed;
-        this.elements.ballAnimation.setAttribute('dur', this.scoreDur.toString());
-        this.elements.ballAnimation.beginElement();
-    }
-    private getPathCommands(start: Vec2, points: Array<Vec2>): string {
-        let directions = start.asAbsolute();
-        for (let point of points) {
-            directions = directions.concat(point.asLine());
-        }
-        return directions;
-    }
-    private adjustCollision(point: Vec2, isEnd: boolean) {
-        if (isEnd) {
-            if (point.x > 20)
-                point.x += 0.01;
-            else
-                point.x -= 0.01;
-        } else {
-            if (point.y > 10)
-                point.y -= 0.01;
-            else
-                point.y += 0.01;
-        }
-    }
-    private findNextCollision(path: Line): null | [Vec2, boolean] {
-        for (let [line, isEnd] of this.bounds) {
-            let maybeIntersect = lineLineIntersect(path, line);
-            if (maybeIntersect !== null)
-                return [maybeIntersect, isEnd];
-        }
-        return null;
-    }
-    private processScore(isPlayer: boolean, textElement: SVGTextElement) {
-        let score;
-        if (isPlayer) {
-            this.playerScore++;
-            score = this.playerScore;
-        } else {
-            this.aiScore++;
-            score = this.aiScore;
-        }
-        textElement.innerHTML = score.toString();
-        this.running = false;
-        this.resetBall();
-        this.resetPaddles();
     }
     private resetPath(path: SVGPathElement) {
         path.setAttribute('d', this.center.asAbsolute());
@@ -303,8 +190,175 @@ class Pong {
         this.elements.playerScoreElement.innerHTML = '0';
         this.elements.aiScoreElement.innerHTML = '0';
     }
+    private update(timestamp: number) {
+        this.lastTime = this.time;
+        this.time = timestamp;
+
+        if (this.shouldServe)
+            this.serve();
+
+        this.processAScore();
+        this.processHit();
+        this.updatePlayer();
+        this.updateAI();
+
+        if (this.running)
+            this.lastAnimationFrame = window.requestAnimationFrame((timestamp) => {
+                this.update(timestamp);
+            });
+    }
+    private isColliding(paddle: Vec2): boolean {
+        return paddle.y + this.paddleHeight > this.collisionPoint.y &&
+            paddle.y < this.collisionPoint.y;
+    }
+    private processAScore() {
+        if (this.timeSinceServe > this.scoreDur) {
+            if (this.ballVelocity.x > 0) { 
+                this.processScore(this.elements.playerScoreElement);
+                return;
+            } else {
+                this.processScore(this.elements.aiScoreElement);
+                return;
+            }
+        }
+    }
+    private processScore(textElement: SVGTextElement) {
+        let score;
+        if (textElement == this.elements.playerScoreElement) {
+            this.playerScore++;
+            score = this.playerScore;
+        } else {
+            this.aiScore++;
+            score = this.aiScore;
+        }
+        textElement.innerHTML = score.toString();
+        this.running = false;
+        this.resetBall();
+        this.resetPaddles();
+    }
+    private processHit() {
+        if (this.timeSinceServe > this.collisionDur) {
+            if (this.ballVelocity.x > 0) {
+                if (this.isColliding(this.aiPosition)) {
+                    this.processPaddleHit(false);
+                }
+            } else {
+                if (this.isColliding(this.playerPosition)) {
+                    this.processPaddleHit(true);
+                }
+            }
+        }
+    }
+    private processPaddleHit(isPlayer: boolean) {
+        this.ballVelocity.x = -this.ballVelocity.x;
+        if (isPlayer)
+            this.collisionPoint.x += 0.1;
+        else
+            this.collisionPoint.x -= 0.1;
+
+        this.buildBallPath(this.collisionPoint);
+        this.serveTime = this.time;
+    }
+    private updatePlayer() {
+        const dy = this.deltaT * this.paddleVelocity;
+        if (this.moveDown)
+            this.playerPosition.y = Math.min(this.height - this.paddleHeight, this.playerPosition.y + dy);
+        else if (this.moveUp)
+            this.playerPosition.y = Math.max(this.playerPosition.y - dy, 0);
+
+        if (this.moveDown || this.moveUp) {
+            console.log('did the move');
+            translateToPosition(this.elements.playerPaddle, this.playerPosition);
+            this.moveDown = false;
+            this.moveUp = false;
+        }
+    }
+    private updateAI() {
+        let move = false;
+        const dy = this.deltaT * this.paddleVelocity;
+        if (this.aiPosition.y + this.paddleHeight / 2 > this.collisionPoint.y) {
+            move = true;
+            this.aiPosition.y = Math.max(this.aiPosition.y - dy, 0);
+        } else if (this.aiPosition.y < this.collisionPoint.y) {
+            move = true;
+            this.aiPosition.y = Math.min(this.height - this.paddleHeight, this.aiPosition.y + dy);
+        }
+        if (move) {
+            translateToPosition(this.elements.aiPaddle, this.aiPosition);
+        }
+    }
+    private buildBallPath(startingPosition: Vec2) {
+        const dir = this.ballVelocity.mul(2000);
+        const path = new Line(startingPosition, startingPosition.add(dir));
+        const points = [];
+        
+        while (true) {
+            const maybeIntersect = this.findNextCollision(path);
+            if (maybeIntersect !== null) {
+                const [point, isEnd] = maybeIntersect;
+
+                this.adjustCollision(point, isEnd);
+                points.push(point);
+                if (isEnd) {
+                    for (const line of this.paddleBounds) {
+                        const maybeIntersect = lineLineIntersect(path, line);
+                        if (maybeIntersect !== null)
+                            this.collisionPoint = maybeIntersect;
+                    };
+                    break;
+                }
+
+                dir.y = -dir.y;
+                path.p1 = point;
+                path.p2 = point.add(dir);
+            } else
+                break;
+        }
+        this.ballVelocity = dir.div(2000);
+
+        const directions = this.getPathCommands(startingPosition, points);
+        this.elements.ballPath.setAttribute('d', directions);
+        const ballSpeed = this.ballVelocity.magnitude();
+        this.scoreDur = this.elements.ballPath.getTotalLength() / ballSpeed;
+        this.elements.ballAnimation.setAttribute('dur', this.scoreDur.toString());
+        this.elements.ballAnimation.beginElement();
+
+        points.pop();
+        points.push(this.collisionPoint);
+        const collisionPath = this.getPathCommands(startingPosition, points);
+        this.elements.collisionPath.setAttribute('d', collisionPath);
+        this.collisionDur = this.elements.collisionPath.getTotalLength() / ballSpeed;
+    }
+    private getPathCommands(start: Vec2, points: Array<Vec2>): string {
+        let directions = start.asAbsolute();
+        for (const point of points) {
+            directions = directions.concat(point.asLine());
+        }
+        return directions;
+    }
+    private adjustCollision(point: Vec2, isEnd: boolean) {
+        if (isEnd) {
+            if (point.x > 20)
+                point.x += 0.01;
+            else
+                point.x -= 0.01;
+        } else {
+            if (point.y > 10)
+                point.y -= 0.01;
+            else
+                point.y += 0.01;
+        }
+    }
+    private findNextCollision(path: Line): null | [Vec2, boolean] {
+        for (const [line, isEnd] of this.bounds) {
+            const maybeIntersect = lineLineIntersect(path, line);
+            if (maybeIntersect !== null)
+                return [maybeIntersect, isEnd];
+        }
+        return null;
+    }
     private handleKeyboard(event: KeyboardEvent) {
-        let key = event.key;
+        const key = event.key;
         if (this.running) {
             if (key === ',')
                 this.moveUp = true;
@@ -326,14 +380,14 @@ function translateTo(element: SVGElement, x: number, y: number) {
 }
 
 function lineLineIntersect(l1: Line, l2: Line): null | Vec2 {
-    let p = l1.p1;
-    let q = l2.p1;
+    const p = l1.p1;
+    const q = l2.p1;
 
-    let r = l1.p2.sub(p);
-    let s = l2.p2.sub(q);
+    const r = l1.p2.sub(p);
+    const s = l2.p2.sub(q);
 
-    let r_cross_s = r.cross(s);
-    let q_minus_p = q.sub(p);
+    const r_cross_s = r.cross(s);
+    const q_minus_p = q.sub(p);
     // let q_minus_p_cross_r = q_minus_p.cross(r);
 
     if (r_cross_s === 0) {
@@ -343,8 +397,8 @@ function lineLineIntersect(l1: Line, l2: Line): null | Vec2 {
         // else
         //     return null; // parallel
     } else {
-        let t = q_minus_p.cross(s.div(r_cross_s));
-        let u = q_minus_p.cross(r.div(r_cross_s));
+        const t = q_minus_p.cross(s.div(r_cross_s));
+        const u = q_minus_p.cross(r.div(r_cross_s));
         if (0 <= t && t <= 1 && 0 <= u && u <= 1) {
             if (t === 0)
                 return q.add(s.mul(u));

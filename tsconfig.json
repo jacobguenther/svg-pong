@@ -23,7 +23,6 @@
 
 		"strict": true,
 		"strictNullChecks": true,
-
 	},
 	"include": [
 		"*.ts",
