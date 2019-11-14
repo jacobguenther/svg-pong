@@ -1,4 +1,5 @@
 tsc
+mkdir build/min
 minify build/library.js > build/min/library.js
 html-minifier --collapse-whitespace index.html -o build/min/index.html
 cd build/min
