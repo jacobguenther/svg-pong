@@ -1,44 +1,43 @@
 class Vec2 {
     constructor(public x: number, public y: number) {}
-    clone(): Vec2 {
+    public clone(): Vec2 {
         return new Vec2(this.x, this.y);
     }
-    add(other: Vec2): Vec2 {
+    public add(other: Vec2): Vec2 {
         return new Vec2(this.x + other.x, this.y + other.y);
     }
-    sub(other: Vec2): Vec2 {
+    public sub(other: Vec2): Vec2 {
         return new Vec2(this.x - other.x, this.y - other.y);
     }
-    mul(s: number): Vec2 {
+    public mul(s: number): Vec2 {
         return new Vec2(this.x * s, this.y * s);
     }
-    div(s: number): Vec2 {
+    public div(s: number): Vec2 {
         return new Vec2(this.x / s, this.y / s);
     }
-    cross(other: Vec2): number {
+    public cross(other: Vec2): number {
         return this.x * other.y - this.y * other.x;
     }
-    magnitude2(): number {
+    public magnitude2(): number {
         return this.x * this.x + this.y * this.y;
     }
-    magnitude(): number {
+    public magnitude(): number {
         return Math.sqrt(this.magnitude2());
     }
 
-    numberAsString(n: number): string {
-        if (n == Math.floor(n)) {
-            return n.toString();
-        } else {
-            return n.toFixed(2);
+    static numberAsString(n: number): string {
+        if (n != Math.floor(n)) {
+            n.toFixed(2);
         }
+        return n.toString();
     }
-    asString(): string {
-        return `${this.numberAsString(this.x)},${this.numberAsString(this.y)} `;
+    public asString(): string {
+        return `${Vec2.numberAsString(this.x)},${Vec2.numberAsString(this.y)} `;
     }
-    asAbsolute(): string {
+    public asAbsolute(): string {
         return `M${this.asString()}`;
     }
-    asLine(): string {
+    public asLine(): string {
         return `L${this.asString()}`;
     }
 }
@@ -127,13 +126,12 @@ class Pong {
 
     private scoreDur = 0;
     private collisionDur = 0;
-    private collisionPoint = new Vec2(0, 0);
+    private collisionPoint = new Vec2(0, 128);
 
     private moveUp = false;
     private moveDown = false;
 
     constructor(svgContent: Document) {
-        console.log('constructor');
         this.elements = new PongElements(svgContent);
         this.elements.resetButton.addEventListener('click', () => { this.reset(); });
         this.elements.serveButton.addEventListener('click', () => { this.start(); });
@@ -267,7 +265,6 @@ class Pong {
             this.playerPosition.y = Math.max(this.playerPosition.y - dy, 0);
 
         if (this.moveDown || this.moveUp) {
-            console.log('did the move');
             translateToPosition(this.elements.playerPaddle, this.playerPosition);
             this.moveDown = false;
             this.moveUp = false;
@@ -288,7 +285,7 @@ class Pong {
         }
     }
     private buildBallPath(startingPosition: Vec2) {
-        const dir = this.ballVelocity.mul(2000);
+        const dir = this.ballVelocity.mul(1000);
         const path = new Line(startingPosition, startingPosition.add(dir));
         const points = [];
         
@@ -296,8 +293,7 @@ class Pong {
             const maybeIntersect = this.findNextCollision(path);
             if (maybeIntersect !== null) {
                 const [point, isEnd] = maybeIntersect;
-
-                this.adjustCollision(point, isEnd);
+                this.adjustCollision(point, isEnd); // avoid colliding with the same wall again
                 points.push(point);
                 if (isEnd) {
                     for (const line of this.paddleBounds) {
@@ -307,14 +303,13 @@ class Pong {
                     };
                     break;
                 }
-
                 dir.y = -dir.y;
                 path.p1 = point;
                 path.p2 = point.add(dir);
             } else
                 break;
         }
-        this.ballVelocity = dir.div(2000);
+        this.ballVelocity = dir.div(1000);
 
         const directions = this.getPathCommands(startingPosition, points);
         this.elements.ballPath.setAttribute('d', directions);
@@ -381,17 +376,17 @@ function translateTo(element: SVGElement, x: number, y: number) {
 
 function lineLineIntersect(l1: Line, l2: Line): null | Vec2 {
     const p = l1.p1;
-    const q = l2.p1;
-
     const r = l1.p2.sub(p);
+
+    const q = l2.p1;
     const s = l2.p2.sub(q);
 
     const r_cross_s = r.cross(s);
     const q_minus_p = q.sub(p);
-    // let q_minus_p_cross_r = q_minus_p.cross(r);
 
     if (r_cross_s === 0) {
         return null;
+        // let q_minus_p_cross_r = q_minus_p.cross(r);
         // if (q_minus_p_cross_r === 0)
         //     return null; // collinear
         // else

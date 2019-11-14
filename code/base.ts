@@ -1,32 +1,10 @@
 let pong;
 window.onload = function() {
-    const [object, content] = this.getDocumentOfHTMLObject('pong-svg-object');
-    if (window.chrome && object.parentElement != null) {
-        console.log('is chrome');
-        object.parentElement.removeChild(object);
-        let div = document.getElementById('chrome-svg-container');
-        if (div instanceof this.HTMLElement &&
-            content.firstChild !== null)
-        {
-            div.innerHTML = content.documentElement.outerHTML;
-        }
-        pong = new Pong(document);
-    } else
-        pong = new Pong(content);
+    pong = new Pong(document);
 }
 
 function error(id: string, elementName: string): string {
     return `Failed to find ${elementName} element with id "${id}"`;
-}
-function getDocumentOfHTMLObject(id: string): [HTMLObjectElement, Document] {
-    const element = document.getElementById(id);
-    if (element instanceof HTMLObjectElement) {
-        const content = element.contentDocument;
-        if (content !== null)
-            return [element, content];
-        throw `document of ${id} is empty`;
-    }
-    throw error(id, 'html object');
 }
 function getHTMLButton(id: string): HTMLButtonElement {
     const element = document.getElementById(id);
